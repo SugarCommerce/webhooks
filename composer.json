@@ -1,19 +1,19 @@
 {
-  "name": "sugarmill/webhooks",
+  "name": "sugarcommerce/webhooks",
   "version": "1.0.0",
   "description": "Webhook signing, verification and retry scheduling. Stripe-style t=,v1= signatures with replay protection, constant-time comparison, and a retry policy that distinguishes the receiver's problems from your own. Zero dependencies.",
   "type": "library",
   "license": "GPL-2.0-or-later",
-  "homepage": "https://github.com/sugarmill/webhooks",
+  "homepage": "https://github.com/sugarcommerce/webhooks",
   "authors": [ { "name": "David Sherlock", "homepage": "https://arraypress.com/" } ],
   "keywords": ["webhooks", "hmac", "signature", "verification", "retry", "replay-protection"],
   "require": { "php": ">=8.5" },
   "require-dev": { "phpunit/phpunit": "^13.0" },
-  "autoload": { "psr-4": { "SugarMill\\Webhooks\\": "src/" } },
-  "autoload-dev": { "psr-4": { "SugarMill\\Webhooks\\Tests\\": "tests/" } },
+  "autoload": { "psr-4": { "Sugar\\Webhooks\\": "src/" } },
+  "autoload-dev": { "psr-4": { "Sugar\\Webhooks\\Tests\\": "tests/" } },
   "scripts": { "test": "phpunit" },
   "config": { "optimize-autoloader": true, "sort-packages": true, "preferred-install": "dist" },
   "minimum-stability": "stable",
   "prefer-stable": true,
-  "support": { "issues": "https://github.com/sugarmill/webhooks/issues", "source": "https://github.com/sugarmill/webhooks" }
+  "support": { "issues": "https://github.com/sugarcommerce/webhooks/issues", "source": "https://github.com/sugarcommerce/webhooks" }
 }

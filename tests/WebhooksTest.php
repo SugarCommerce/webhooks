@@ -2,7 +2,7 @@
 /**
  * Webhooks test suite.
  *
- * @package   SugarMill\Webhooks
+ * @package   Sugar\Webhooks
  * @copyright Copyright (c) 2026, ArrayPress Limited
  * @license   GPL-2.0-or-later
  * @since     1.0.0
@@ -10,12 +10,12 @@
 
 declare( strict_types=1 );
 
-namespace SugarMill\Webhooks\Tests;
+namespace Sugar\Webhooks\Tests;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use SugarMill\Webhooks\RetryPolicy;
-use SugarMill\Webhooks\Signature;
+use Sugar\Webhooks\RetryPolicy;
+use Sugar\Webhooks\Signature;
 
 final class WebhooksTest extends TestCase {
 

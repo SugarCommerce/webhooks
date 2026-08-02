@@ -2,7 +2,7 @@
 /**
  * Webhook payload signing and verification.
  *
- * @package   SugarMill\Webhooks
+ * @package   Sugar\Webhooks
  * @copyright Copyright (c) 2026, ArrayPress Limited
  * @license   GPL-2.0-or-later
  * @since     1.0.0
@@ -10,7 +10,7 @@
 
 declare( strict_types=1 );
 
-namespace SugarMill\Webhooks;
+namespace Sugar\Webhooks;
 
 /**
  * Class Signature

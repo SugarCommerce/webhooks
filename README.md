@@ -28,13 +28,13 @@ PHP 8.5+
 ## Installation
 
 ```bash
-composer require sugarmill/webhooks
+composer require sugarcommerce/webhooks
 ```
 
 ## Sending
 
 ```php
-use SugarMill\Webhooks\Signature;
+use Sugar\Webhooks\Signature;
 
 $payload   = json_encode( $event );
 $signature = Signature::sign( $payload, $endpoint_secret );
@@ -87,7 +87,7 @@ Both `v1=` values are checked, so receivers can move to the new secret at their 
 ## Retrying
 
 ```php
-use SugarMill\Webhooks\RetryPolicy;
+use Sugar\Webhooks\RetryPolicy;
 
 $policy = new RetryPolicy( max_attempts: 6, base_delay: 60, max_delay: 86400, jitter: 25 );
 
