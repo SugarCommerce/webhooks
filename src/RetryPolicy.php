@@ -2,7 +2,7 @@
 /**
  * Webhook delivery retry scheduling.
  *
- * @package   Sugar\Webhooks
+ * @package   SugarCommerce\Webhooks
  * @copyright Copyright (c) 2026, ArrayPress Limited
  * @license   GPL-2.0-or-later
  * @since     1.0.0
@@ -10,7 +10,7 @@
 
 declare( strict_types=1 );
 
-namespace Sugar\Webhooks;
+namespace SugarCommerce\Webhooks;
 
 /**
  * Class RetryPolicy

@@ -34,7 +34,7 @@ composer require sugarcommerce/webhooks
 ## Sending
 
 ```php
-use Sugar\Webhooks\Signature;
+use SugarCommerce\Webhooks\Signature;
 
 $payload   = json_encode( $event );
 $signature = Signature::sign( $payload, $endpoint_secret );
@@ -87,7 +87,7 @@ Both `v1=` values are checked, so receivers can move to the new secret at their 
 ## Retrying
 
 ```php
-use Sugar\Webhooks\RetryPolicy;
+use SugarCommerce\Webhooks\RetryPolicy;
 
 $policy = new RetryPolicy( max_attempts: 6, base_delay: 60, max_delay: 86400, jitter: 25 );
 
