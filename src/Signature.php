@@ -46,7 +46,7 @@ final readonly class Signature {
 	/**
 	 * Header carrying the signature.
 	 */
-	public const HEADER = 'X-Webhook-Signature';
+	public const string HEADER = 'X-Webhook-Signature';
 
 	/**
 	 * How much clock skew to tolerate, in seconds.
@@ -55,7 +55,7 @@ final readonly class Signature {
 	 * shorter starts rejecting legitimate deliveries when the sender's
 	 * clock drifts or a queue backs up.
 	 */
-	public const DEFAULT_TOLERANCE = 300;
+	public const int DEFAULT_TOLERANCE = 300;
 
 	/**
 	 * Sign a payload.
@@ -101,6 +101,7 @@ final readonly class Signature {
 	 *
 	 * @return Verification
 	 */
+	#[\NoDiscard( 'An unchecked verification is no verification.' )]
 	public static function verify(
 		string $payload,
 		string $header,

@@ -1,6 +1,6 @@
 {
   "name": "sugarcommerce/webhooks",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Webhook signing, verification and retry scheduling. Stripe-style t=,v1= signatures with replay protection, constant-time comparison, and a retry policy that distinguishes the receiver's problems from your own. Zero dependencies.",
   "type": "library",
   "license": "GPL-2.0-or-later",
