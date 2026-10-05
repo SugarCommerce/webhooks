@@ -298,4 +298,68 @@ final class WebhooksTest extends TestCase {
 		$this->assertSame( 60, ( new RetryPolicy( jitter: 0 ) )->delay( 1, 0 ) );
 		$this->assertSame( 60, ( new RetryPolicy( jitter: 0 ) )->delay( 1, -5 ) );
 	}
+
+	/* ─── Retry-After ───────────────────────────────────────────────── */
+
+	#[DataProvider( 'retry_after_headers' )]
+	public function test_retry_after_is_read_in_both_forms( ?string $header, ?int $expected ): void {
+		$this->assertSame( $expected, RetryPolicy::retry_after( $header, self::NOW ) );
+	}
+
+	/** @return array<string, array{0: ?string, 1: ?int}> */
+	public static function retry_after_headers(): array {
+		return array(
+			'seconds'                => array( '120', 120 ),
+			'seconds, padded'        => array( ' 30 ', 30 ),
+			'zero'                   => array( '0', 0 ),
+			'IMF-fixdate'            => array( gmdate( 'D, d M Y H:i:s', self::NOW + 120 ) . ' GMT', 120 ),
+			'RFC 850 date'           => array( gmdate( 'l, d-M-y H:i:s', self::NOW + 60 ) . ' GMT', 60 ),
+			'asctime date'           => array( gmdate( 'D M j H:i:s Y', self::NOW + 90 ), 90 ),
+			'a date already past'    => array( gmdate( 'D, d M Y H:i:s', self::NOW - 600 ) . ' GMT', 0 ),
+			'missing'                => array( null, null ),
+			'empty'                  => array( '', null ),
+			'negative'               => array( '-5', null ),
+			'fractional'             => array( '1.5', null ),
+			'nonsense'               => array( 'soon', null ),
+			'a date that rolls over' => array( 'Tue, 31 Feb 2026 00:00:00 GMT', null ),
+		);
+	}
+
+	/**
+	 * A header straight into delay(), as the README shows it.
+	 */
+	public function test_a_dated_retry_after_reaches_the_delay(): void {
+		$header = gmdate( 'D, d M Y H:i:s', self::NOW + 300 ) . ' GMT';
+
+		$this->assertSame( 300, ( new RetryPolicy() )->delay( 1, RetryPolicy::retry_after( $header, self::NOW ) ) );
+	}
+
+	/* ─── Counting attempts ─────────────────────────────────────────── */
+
+	public function test_attempts_run_out_at_the_limit(): void {
+		$policy = new RetryPolicy( max_attempts: 3 );
+
+		$this->assertFalse( $policy->exhausted( 2 ) );
+		$this->assertTrue( $policy->exhausted( 3 ) );
+		$this->assertTrue( $policy->exhausted( 4 ) );
+	}
+
+	public function test_the_next_attempt_is_the_delay_from_now(): void {
+		$policy = new RetryPolicy( base_delay: 60, max_delay: 3600, jitter: 0 );
+
+		$this->assertSame( self::NOW + 60, $policy->next_attempt_at( 1, self::NOW ) );
+		$this->assertSame( self::NOW + 240, $policy->next_attempt_at( 3, self::NOW ) );
+		$this->assertSame( self::NOW + 15, $policy->next_attempt_at( 3, self::NOW, 15 ) );
+	}
+
+	/**
+	 * A row that has failed a thousand times waits the cap, not a negative
+	 * or overflowed number.
+	 */
+	public function test_a_huge_attempt_count_waits_the_cap(): void {
+		$policy = new RetryPolicy( max_attempts: 12, base_delay: 60, max_delay: 21600, jitter: 0 );
+
+		$this->assertSame( 21600, $policy->delay( 1000 ) );
+		$this->assertSame( 21600, $policy->delay( PHP_INT_MAX ) );
+	}
 }

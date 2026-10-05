@@ -128,6 +128,103 @@ final readonly class RetryPolicy {
 	}
 
 	/**
+	 * Whether a row has used all its attempts.
+	 *
+	 * For a caller that keeps its own failure count — a sweep that retries
+	 * a row until it works, with no status code to judge by — and needs to
+	 * know when to stop and mark it given up rather than try for ever.
+	 *
+	 * @since 1.2.0
+	 *
+	 * @param int $attempt Attempts made so far, 1-indexed.
+	 *
+	 * @return bool
+	 */
+	public function exhausted( int $attempt ): bool {
+		return $attempt >= $this->max_attempts;
+	}
+
+	/**
+	 * When to try again, as a Unix time.
+	 *
+	 * The same wait as {@see self::delay()}, added to the clock, for a row
+	 * that stores when it is next due rather than how long to wait.
+	 *
+	 * @since 1.2.0
+	 *
+	 * @param int      $attempt     Attempts made so far, 1-indexed.
+	 * @param int      $now         Current time.
+	 * @param int|null $retry_after The receiver's `Retry-After`, in seconds.
+	 *
+	 * @return int
+	 *
+	 * @throws \Random\RandomException When the CSPRNG is unavailable.
+	 */
+	public function next_attempt_at( int $attempt, int $now, ?int $retry_after = null ): int {
+		return $now + $this->delay( $attempt, $retry_after );
+	}
+
+	/**
+	 * Read a `Retry-After` header as seconds from now.
+	 *
+	 * RFC 9110 allows two forms, and receivers use both: a number of
+	 * seconds, and an HTTP-date. Code that only handles the number — the
+	 * usual `is_numeric()` check — throws the date away and falls back to
+	 * its own backoff, which is exactly when the receiver said something
+	 * more useful. A date in the past is "now", and anything unreadable is
+	 * null, so the policy's own curve decides.
+	 *
+	 * @since 1.2.0
+	 *
+	 * @param string|null $header The header's value, as received.
+	 * @param int|null    $now    Current time. For tests.
+	 *
+	 * @return int|null Seconds to wait, or null when there is no usable
+	 *                  answer.
+	 */
+	public static function retry_after( ?string $header, ?int $now = null ): ?int {
+		$header = trim( (string) $header );
+
+		if ( '' === $header ) {
+			return null;
+		}
+
+		if ( ctype_digit( $header ) ) {
+			return (int) $header;
+		}
+
+		$when = self::http_date( $header );
+
+		return null === $when ? null : max( 0, $when - ( $now ?? time() ) );
+	}
+
+	/**
+	 * Parse an HTTP-date in any of the three forms RFC 9110 says a
+	 * recipient must accept.
+	 *
+	 * @since 1.2.0
+	 *
+	 * @param string $value e.g. `Sun, 06 Nov 1994 08:49:37 GMT`.
+	 *
+	 * @return int|null Unix time, or null when it is not one.
+	 */
+	private static function http_date( string $value ): ?int {
+		$value = (string) preg_replace( '/\s+/', ' ', $value );
+		$utc   = new \DateTimeZone( 'UTC' );
+
+		foreach ( array( '!D, d M Y H:i:s \G\M\T', '!l, d-M-y H:i:s \G\M\T', '!D M j H:i:s Y' ) as $format ) {
+			$date = \DateTimeImmutable::createFromFormat( $format, $value, $utc );
+
+			// Rolled over (31 February) is not a date the sender meant.
+			if ( false !== $date && false === \DateTimeImmutable::getLastErrors() ) {
+				return $date->getTimestamp();
+			}
+		}
+
+		return null;
+	}
+
+	/**
 	 * The schedule this policy produces, for documentation and tests.
 	 *
 	 * @since 1.0.0
