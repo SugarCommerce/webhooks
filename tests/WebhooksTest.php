@@ -362,4 +362,58 @@ final class WebhooksTest extends TestCase {
 		$this->assertSame( 21600, $policy->delay( 1000 ) );
 		$this->assertSame( 21600, $policy->delay( PHP_INT_MAX ) );
 	}
+
+	/* ─── Hardening (1.3.0) ─────────────────────────────────────────── */
+
+	/**
+	 * A negative window read as "no window", so a typo accepted every
+	 * replay of every captured request for ever.
+	 */
+	public function test_a_negative_tolerance_fails_closed(): void {
+		$header = Signature::sign( self::PAYLOAD, self::SECRET, self::NOW - 86400 * 365 );
+
+		$this->assertFalse( Signature::verify( self::PAYLOAD, $header, self::SECRET, -1, self::NOW )->valid );
+	}
+
+	/**
+	 * There is one signing time. A second `t` is a header offering this end
+	 * a choice of which time to believe.
+	 */
+	public function test_a_second_timestamp_is_malformed(): void {
+		$header = Signature::sign( self::PAYLOAD, self::SECRET, self::NOW ) . ',t=' . self::NOW;
+
+		$this->assertFalse( Signature::verify( self::PAYLOAD, $header, self::SECRET, now: self::NOW )->valid );
+	}
+
+	public function test_a_timestamp_too_long_for_an_integer_is_malformed(): void {
+		$result = Signature::verify( self::PAYLOAD, 't=99999999999999999999,v1=' . str_repeat( 'a', 64 ), self::SECRET, 0 );
+
+		$this->assertFalse( $result->valid );
+		$this->assertStringContainsString( 'malformed', $result->reason );
+	}
+
+	/**
+	 * Rotation on the receiving side: both secrets are valid while the
+	 * sender switches, and either signature passes.
+	 */
+	public function test_either_of_two_secrets_verifies_during_rotation(): void {
+		$old = Signature::sign( self::PAYLOAD, 'old-secret', self::NOW );
+		$new = Signature::sign( self::PAYLOAD, 'new-secret', self::NOW );
+
+		$this->assertTrue( Signature::verify( self::PAYLOAD, $old, array( 'new-secret', 'old-secret' ), now: self::NOW )->valid );
+		$this->assertTrue( Signature::verify( self::PAYLOAD, $new, array( 'new-secret', 'old-secret' ), now: self::NOW )->valid );
+		$this->assertFalse( Signature::verify( self::PAYLOAD, $old, array( 'new-secret' ), now: self::NOW )->valid );
+		$this->assertFalse( Signature::verify( self::PAYLOAD, $old, array( '', '' ), now: self::NOW )->valid );
+	}
+
+	/**
+	 * `0 * INF` is not a number, and casting it to an int is a warning in
+	 * PHP 8.5 and 0 before.
+	 */
+	public function test_a_zero_base_delay_stays_zero_at_any_attempt(): void {
+		$policy = new RetryPolicy( max_attempts: 12, base_delay: 0, max_delay: 21600, jitter: 0 );
+
+		$this->assertSame( 0, $policy->delay( 2000 ) );
+		$this->assertSame( array( 0, 0 ), ( new RetryPolicy( max_attempts: 3, base_delay: 0 ) )->schedule() );
+	}
 }

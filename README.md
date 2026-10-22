@@ -78,12 +78,25 @@ The default is 300 seconds, matching Stripe. It exists because clocks drift and 
 
 ### Rotating a secret
 
+Sending, sign with both at the **same** timestamp — each `v1` covers it:
+
 ```php
-$header = Signature::sign( $payload, $new_secret )
-    . ',' . explode( ',', Signature::sign( $payload, $old_secret ) )[1];
+$t      = time();
+$header = Signature::sign( $payload, $new_secret, $t )
+    . ',' . explode( ',', Signature::sign( $payload, $old_secret, $t ) )[1];
 ```
 
 Both `v1=` values are checked, so receivers can move to the new secret at their own pace. Drop the old one once they have.
+
+Receiving, accept both while the sender switches:
+
+```php
+Signature::verify( $payload, $header, [ $new_secret, $old_secret ] );
+```
+
+### Replays inside the window
+
+A genuine request captured and resent within the tolerance still verifies. Store each event's id and refuse one already processed; the tolerance only bounds how long those ids need keeping. A negative tolerance fails every request rather than switching the check off, and a header with two `t=` values is malformed.
 
 ## Retrying
 
@@ -152,7 +165,7 @@ composer install
 composer test
 ```
 
-75 tests — signature round trips, tampered payloads and headers, expired and future timestamps, multi-signature rotation, malformed headers of every shape, the full backoff ladder, `Retry-After` in seconds and in all three date forms, and when an endpoint is (and is not) switched off.
+80 tests — signature round trips, tampered payloads and headers, expired and future timestamps, multi-signature rotation, malformed headers of every shape, the full backoff ladder, `Retry-After` in seconds and in all three date forms, and when an endpoint is (and is not) switched off.
 
 ## License
 

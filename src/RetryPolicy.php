@@ -114,17 +114,17 @@ final readonly class RetryPolicy {
 			return min( $retry_after, $this->max_delay );
 		}
 
-		$delay = min( $this->base_delay * ( 2 ** max( 0, $attempt - 1 ) ), $this->max_delay );
+		$delay = $this->backoff( $attempt );
 
 		if ( $this->jitter <= 0 ) {
-			return (int) $delay;
+			return $delay;
 		}
 
 		// Spread retries so a recovering receiver is not hit by every
 		// queued delivery in the same second.
-		$spread = (int) ( $delay * ( $this->jitter / 100 ) );
+		$spread = intdiv( $delay * min( 100, $this->jitter ), 100 );
 
-		return (int) max( 1, $delay - $spread + random_int( 0, $spread * 2 ) );
+		return max( 1, $delay - $spread + random_int( 0, $spread * 2 ) );
 	}
 
 	/**
@@ -229,15 +229,40 @@ final readonly class RetryPolicy {
 	 *
 	 * @since 1.0.0
 	 *
-	 * @return int[] Delay before each retry, jitter excluded.
+	 * @return list<int> Delay before each retry, jitter excluded.
 	 */
 	public function schedule(): array {
 		$schedule = array();
 
 		for ( $attempt = 1; $attempt < $this->max_attempts; $attempt++ ) {
-			$schedule[] = (int) min( $this->base_delay * ( 2 ** ( $attempt - 1 ) ), $this->max_delay );
+			$schedule[] = $this->backoff( $attempt );
 		}
 
 		return $schedule;
+	}
+
+	/**
+	 * The un-jittered wait after an attempt: the base delay doubled per
+	 * attempt, up to the ceiling.
+	 *
+	 * Doubled a step at a time and stopped at the ceiling, in integers.
+	 * `2 ** $attempt` is a float from the 63rd attempt and infinite not long
+	 * after, and a zero base delay times infinity is not a number.
+	 *
+	 * @since 1.3.0
+	 *
+	 * @param int $attempt Attempts made so far, 1-indexed.
+	 *
+	 * @return int Seconds, 0 to max_delay.
+	 */
+	private function backoff( int $attempt ): int {
+		$ceiling = max( 0, $this->max_delay );
+		$delay   = min( max( 0, $this->base_delay ), $ceiling );
+
+		for ( $step = 1; $step < $attempt && $delay > 0 && $delay < $ceiling; $step++ ) {
+			$delay = $delay > intdiv( $ceiling, 2 ) ? $ceiling : $delay * 2;
+		}
+
+		return $delay;
 	}
 }

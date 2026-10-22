@@ -39,6 +39,11 @@ namespace SugarCommerce\Webhooks;
  * **Accepting an unsigned request.** An absent header must be a
  * rejection, not a skipped check.
  *
+ * A signature fresh enough to pass can still be sent twice inside the
+ * window. Record the event's id and refuse one already seen: the
+ * timestamp bounds how long that record has to be kept, not whether it is
+ * needed.
+ *
  * @since 1.0.0
  */
 final readonly class Signature {
@@ -89,15 +94,24 @@ final readonly class Signature {
 	 * Pass the **raw request body**, exactly as received. Anything that
 	 * has been decoded and re-encoded will not verify, and rightly so.
 	 *
-	 * @since 1.0.0
+	 * While a secret is being rotated, pass both: a delivery signed with
+	 * either verifies, and the old one is dropped once the sender has
+	 * switched.
 	 *
-	 * @param string   $payload   Raw request body.
-	 * @param string   $header    The signature header value.
-	 * @param string   $secret    Shared secret for this endpoint.
-	 * @param int      $tolerance Permitted clock skew in seconds. 0 disables
-	 *                            the check, which also disables replay
-	 *                            protection.
-	 * @param int|null $now       Current time. For tests.
+	 * @since 1.0.0
+	 * @since 1.3.0 Takes a list of secrets, for rotation, and fails a
+	 *              negative tolerance rather than skipping the check.
+	 *
+	 * @param string              $payload   Raw request body.
+	 * @param string              $header    The signature header value.
+	 * @param string|list<string> $secret    Shared secret for this endpoint,
+	 *                                       or every secret currently valid
+	 *                                       for it. Empty ones are ignored.
+	 * @param int                 $tolerance Permitted clock skew in seconds.
+	 *                                       0 disables the check, which also
+	 *                                       disables replay protection. Below
+	 *                                       0 is a misconfiguration, and fails.
+	 * @param int|null            $now       Current time. For tests.
 	 *
 	 * @return Verification
 	 */
@@ -105,12 +119,20 @@ final readonly class Signature {
 	public static function verify(
 		string $payload,
 		string $header,
-		#[\SensitiveParameter] string $secret,
+		#[\SensitiveParameter] string|array $secret,
 		int $tolerance = self::DEFAULT_TOLERANCE,
 		?int $now = null
 	): Verification {
-		if ( '' === $secret ) {
+		$secrets = array_values( array_filter( (array) $secret, static fn ( string $one ): bool => '' !== $one ) );
+
+		if ( array() === $secrets ) {
 			return Verification::failed( 'No signing secret is configured for this endpoint.' );
+		}
+
+		// A negative window used to read as "no window", which turned a typo
+		// into accepting every replay for ever.
+		if ( $tolerance < 0 ) {
+			return Verification::failed( 'The permitted time window cannot be negative.' );
 		}
 
 		if ( '' === trim( $header ) ) {
@@ -126,14 +148,17 @@ final readonly class Signature {
 
 		[ $timestamp, $signatures ] = $parts;
 
-		$expected = hash_hmac( 'sha256', $timestamp . '.' . $payload, $secret );
-		$matched  = false;
+		$matched = false;
 
-		// Every candidate is compared, without an early exit, so the time
-		// taken does not reveal which one matched or how many were sent.
-		foreach ( $signatures as $candidate ) {
-			if ( hash_equals( $expected, $candidate ) ) {
-				$matched = true;
+		// Every candidate is compared against every secret, without an early
+		// exit, so the time taken does not reveal which one matched.
+		foreach ( $secrets as $one ) {
+			$expected = hash_hmac( 'sha256', $timestamp . '.' . $payload, $one );
+
+			foreach ( $signatures as $candidate ) {
+				if ( hash_equals( $expected, $candidate ) ) {
+					$matched = true;
+				}
 			}
 		}
 
@@ -158,13 +183,17 @@ final readonly class Signature {
 	 * Parse a signature header.
 	 *
 	 * More than one `v1` may be present — that is how a secret is rotated
-	 * without dropping deliveries, so all of them are collected.
+	 * without dropping deliveries, so all of them are collected. More than
+	 * one `t` is malformed: there is one signing time, and a header that
+	 * offers a choice is not one this end should make for the sender.
 	 *
 	 * @since 1.0.0
+	 * @since 1.3.0 Refuses a second `t`, and a timestamp too long to be an
+	 *              integer.
 	 *
 	 * @param string $header Header value.
 	 *
-	 * @return array{0: int, 1: string[]}|null Null when malformed.
+	 * @return array{0: int, 1: non-empty-list<string>}|null Null when malformed.
 	 */
 	private static function parse( string $header ): ?array {
 		$timestamp  = null;
@@ -179,7 +208,14 @@ final readonly class Signature {
 
 			[ $key, $value ] = $pair;
 
-			if ( 't' === $key && 1 === preg_match( '/^\d{1,20}$/', $value ) ) {
+			if ( 't' === $key ) {
+				// Fifteen digits is thirty million years; twenty overflowed
+				// an integer, and the time checked was then not the time
+				// signed.
+				if ( null !== $timestamp || 1 !== preg_match( '/^\d{1,15}$/', $value ) ) {
+					return null;
+				}
+
 				$timestamp = (int) $value;
 				continue;
 			}
