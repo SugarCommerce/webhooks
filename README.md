@@ -1,6 +1,6 @@
 # Webhooks
 
-Webhook signing, verification and retry scheduling. Stripe-style `t=,v1=` signatures with replay protection, constant-time comparison, and a retry policy that distinguishes the receiver's problems from your own. Zero dependencies.
+Webhook signing, verification and retry scheduling. Stripe-style `t=,v1=` signatures with replay protection, constant-time comparison, and a retry policy that distinguishes the receiver's problems from your own. One dependency: the owner's http-client, for `Sender`.
 
 ## Why
 
@@ -47,6 +47,17 @@ $response = $client->post( $endpoint_url, $payload, [
 ```
 
 Sign the **exact bytes** you send. Re-encoding the payload after signing — even a whitespace difference — invalidates the signature, and it is the most common reason a correct implementation on both ends still fails.
+
+Or let `Sender` do one attempt: signed at the moment of sending (a delivery late in a slow run otherwise arrives older than the receiver's tolerance), with a timeout, and never throwing — a refused or private URL is a failed attempt like any other.
+
+```php
+$attempt = ( new Sender( $http ) )->send( $url, $payload, $secret, array( 'Shop-Event' => $event, 'Shop-Delivery' => (string) $id ) );
+
+$attempt->sent;          // 2xx
+$attempt->status;        // 0 when nothing came back
+$attempt->error;         // '' when sent, else e.g. "Endpoint answered 503"
+$attempt->retry_after;   // seconds the receiver asked for, from Retry-After
+```
 
 ## Receiving
 
@@ -165,7 +176,7 @@ composer install
 composer test
 ```
 
-80 tests — signature round trips, tampered payloads and headers, expired and future timestamps, multi-signature rotation, malformed headers of every shape, the full backoff ladder, `Retry-After` in seconds and in all three date forms, and when an endpoint is (and is not) switched off.
+86 tests — signature round trips, sending through a scripted client, tampered payloads and headers, expired and future timestamps, multi-signature rotation, malformed headers of every shape, the full backoff ladder, `Retry-After` in seconds and in all three date forms, and when an endpoint is (and is not) switched off.
 
 ## License
 
