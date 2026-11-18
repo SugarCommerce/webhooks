@@ -1,0 +1,105 @@
+{
+  "name": "sugarcommerce/webhooks",
+  "description": "Signed webhooks for WordPress, both ways: an endpoint store, an event catalogue and a queued dispatcher with Stripe-compatible signatures, sensible retries and refusal of private-network addresses, and a receiver that checks the signature and handles each event once.",
+  "type": "library",
+  "license": "GPL-2.0-or-later",
+  "homepage": "https://github.com/sugarcommerce/webhooks",
+  "authors": [
+    {
+      "name": "David Sherlock",
+      "homepage": "https://arraypress.com/"
+    }
+  ],
+  "repositories": [
+    {
+      "type": "path",
+      "url": "../dates",
+      "options": {
+        "symlink": false
+      }
+    },
+    {
+      "type": "path",
+      "url": "../jobs",
+      "options": {
+        "symlink": false
+      }
+    },
+    {
+      "type": "path",
+      "url": "../network",
+      "options": {
+        "symlink": false
+      }
+    },
+    {
+      "type": "path",
+      "url": "../security",
+      "options": {
+        "symlink": false
+      }
+    }
+  ],
+  "require": {
+    "php": ">=8.3",
+    "sugarcommerce/dates": "dev-main",
+    "sugarcommerce/jobs": "dev-main",
+    "sugarcommerce/network": "dev-main",
+    "sugarcommerce/security": "dev-main"
+  },
+  "autoload": {
+    "psr-4": {
+      "SugarCommerce\\Webhooks\\": "src/"
+    }
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "sort-packages": true,
+    "preferred-install": "dist",
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": false
+    }
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "support": {
+    "issues": "https://github.com/sugarcommerce/webhooks/issues",
+    "source": "https://github.com/sugarcommerce/webhooks"
+  },
+  "keywords": [
+    "wordpress",
+    "webhooks",
+    "hmac",
+    "signature",
+    "stripe",
+    "action-scheduler",
+    "retry",
+    "circuit-breaker",
+    "ssrf",
+    "idempotency"
+  ],
+  "require-dev": {
+    "phpcompatibility/phpcompatibility-wp": "^2.1",
+    "phpunit/phpunit": "^12.0",
+    "squizlabs/php_codesniffer": "^3.13.5",
+    "wp-coding-standards/wpcs": "^3.4"
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "SugarCommerce\\Webhooks\\Tests\\": "tests/"
+    },
+    "exclude-from-classmap": [
+      "/tests/bootstrap.php"
+    ]
+  },
+  "scripts": {
+    "test": [
+      "phpunit --exclude-group without-action-scheduler",
+      "@putenv WITHOUT_ACTION_SCHEDULER=1",
+      "phpunit --group without-action-scheduler"
+    ],
+    "lint": "phpcs",
+    "format": "phpcbf --standard=phpcs-format.xml.dist",
+    "format:check": "phpcs --standard=phpcs-format.xml.dist"
+  }
+}
