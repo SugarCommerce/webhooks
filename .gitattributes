@@ -39,3 +39,9 @@
 /EXAMPLES.md export-ignore
 /CHANGELOG.md export-ignore
 /SECURITY.md export-ignore
+
+# A clone's own dev install. It is not tracked, so a git archive never had
+# it, but a Composer path repository (symlink off) mirrors the working folder
+# through these same rules -- without this, a plugin built from a local clone
+# copies the library's phpunit and phpcs into its vendor-prefixed folder.
+/vendor export-ignore
