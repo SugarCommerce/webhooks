@@ -1,42 +1,101 @@
 name: CI
 
-# On demand only: every push mailed a failing matrix to the maintainer.
+# The same file in every SugarCommerce package. What differs between them --
+# sibling packages, a WordPress test site, JavaScript tests, documentation
+# checks -- is read from composer.json, so a step a package does not need
+# says so and passes.
+
 on:
+  push:
+    branches: [ main ]
+  pull_request:
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
 
 jobs:
   test:
     name: PHP ${{ matrix.php }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     strategy:
       fail-fast: false
       matrix:
+        # 8.3 is the declared minimum.
         php: [ '8.3', '8.4', '8.5' ]
 
+    defaults:
+      run:
+        shell: bash
+
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: mbstring
+          extensions: mbstring, intl, iconv, mysqli
           coverage: none
           tools: composer:v2
 
+      # The SugarCommerce packages this one builds on come from path
+      # repositories (../dates and the rest), so each is cloned beside it.
       - name: Sibling packages
-        # Required from ../ by a path repository, as on the workbench.
-        run: |
-          for package in dates jobs network security; do
-            git clone --depth 1 "https://github.com/SugarCommerce/$package.git" "../$package"
-          done
+        uses: SugarCommerce/actions/setup-libraries@v1
 
+      # No --prefer-dist: it overrides config.preferred-install.
       - name: Install dependencies
-        run: composer install --prefer-dist --no-progress --no-interaction
+        run: composer install --no-progress --no-interaction
 
-      - name: Lint
-        run: find src tests -name '*.php' -print0 | xargs -0 -n1 -P4 php -l > /dev/null
+      # A suite built on wp-phpunit runs against real WordPress and a real
+      # database: what it tests is what MySQL actually does.
+      - name: WordPress test site
+        run: |
+          if ! jq -e '."require-dev"["wp-phpunit/wp-phpunit"]' composer.json > /dev/null; then
+            echo 'Not a WordPress suite: nothing to set up.'
+            exit 0
+          fi
+
+          docker run -d --name mysql -p 3306:3306 \
+            -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=sugarcommerce_tests mysql:8.4
+
+          # WordPress at the release the test library was cut from.
+          version="$(composer show wp-phpunit/wp-phpunit --format=json | jq -r '.versions[0]')"
+          version="${version%.0}"
+          mkdir -p /tmp/wordpress
+          curl -fsSL "https://wordpress.org/wordpress-${version}.tar.gz" | tar xz --strip-components=1 -C /tmp/wordpress
+
+          {
+            echo 'WP_CORE_DIR=/tmp/wordpress'
+            echo 'WP_TESTS_DB_NAME=sugarcommerce_tests'
+            echo 'WP_TESTS_DB_USER=root'
+            echo 'WP_TESTS_DB_PASSWORD=root'
+            echo 'WP_TESTS_DB_HOST=127.0.0.1'
+          } >> "$GITHUB_ENV"
+
+          for _ in $(seq 60); do
+            docker exec mysql mysql -uroot -proot -e 'SELECT 1' sugarcommerce_tests > /dev/null 2>&1 && exit 0
+            sleep 2
+          done
+          docker logs mysql
+          echo '::error::MySQL did not come up'
+          exit 1
+
+      - name: Syntax
+        # Every PHP file the repository tracks, and the bin/ scripts that are
+        # PHP without the extension.
+        run: |
+          {
+            git ls-files -z -- '*.php'
+            git ls-files -z -- bin | xargs -0 -r grep -lZ '^#!.*php' || true
+          } | xargs -0 -n1 -P4 php -l | { grep -v '^No syntax errors detected' || true; }
 
       - name: Coding standards
         run: composer lint
@@ -46,11 +105,30 @@ jobs:
         # check, and a green build has to mean both.
         run: composer format:check
 
-      - name: Tests
-        # set -o pipefail, because a pipeline reports its last command and tee
-        # always succeeds -- without it a failing suite exits 0 and reads green.
+      - name: JavaScript tests
+        # The PHP suite never executes a line of the scripts it ships.
         run: |
-          set -o pipefail
+          if ! jq -e '.scripts["test:js"]' composer.json > /dev/null; then
+            echo 'No test:js script.'
+            exit 0
+          fi
+          composer test:js
+
+      - name: Documentation
+        # The examples are checked against the registry: a configuration key
+        # nothing reads is not an error in PHP, so the only symptom of one is
+        # a documented option that quietly does nothing.
+        run: |
+          if ! jq -e '.scripts["docs:verify"]' composer.json > /dev/null; then
+            echo 'No docs:verify script.'
+            exit 0
+          fi
+          composer docs:verify
+
+      - name: Tests
+        # The log is checked for a result, because a suite that never started
+        # (a bootstrap that exits early) can still exit 0.
+        run: |
           composer test | tee phpunit.log
           grep -qE 'OK \(|Tests: ' phpunit.log || {
             echo '::error::phpunit produced no result -- the suite did not run'
