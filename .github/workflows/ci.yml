@@ -30,12 +30,17 @@ jobs:
         # 8.3 is the declared minimum.
         php: [ '8.3', '8.4', '8.5' ]
 
+    # Checked out where it sits on the workbench, inside a site's content
+    # folder: an asset's address is worked out from where the library is.
     defaults:
       run:
         shell: bash
+        working-directory: wp-content/plugins/libraries/sugarcommerce/${{ github.event.repository.name }}
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          path: wp-content/plugins/libraries/sugarcommerce/${{ github.event.repository.name }}
 
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
@@ -49,6 +54,8 @@ jobs:
       # repositories (../dates and the rest), so each is cloned beside it.
       - name: Sibling packages
         uses: SugarCommerce/actions/setup-libraries@v1
+        with:
+          working-directory: wp-content/plugins/libraries/sugarcommerce/${{ github.event.repository.name }}
 
       # No --prefer-dist: it overrides config.preferred-install.
       - name: Install dependencies
