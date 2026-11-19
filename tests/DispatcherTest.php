@@ -296,18 +296,38 @@ final class DispatcherTest extends TestCase {
 		$action = $this->delivery();
 
 		$this->assertSame( array( 'we_all', 'order.completed', '{"same":true}', 3 ), $action['args'] );
-		$this->assertEqualsWithDelta( time() + 300, $action['timestamp'], 2 );
+		$this->assertEqualsWithDelta( time() + 300, $action['timestamp'], 30 + 2, 'Five minutes, give or take a tenth.' );
 	}
 
 	/**
-	 * A minute, five, half an hour, two hours -- and five tries in all.
+	 * A minute, five, half an hour, two hours -- and five tries in all --
+	 * each give or take a tenth.
 	 */
 	public function test_the_default_schedule(): void {
 		$webhooks = $this->webhooks();
 
-		$this->assertSame( array( 60, 300, 1800, 7200 ), array_map( array( $webhooks, 'retry_delay' ), array( 1, 2, 3, 4 ) ) );
+		foreach ( array( 1 => 60, 2 => 300, 3 => 1800, 4 => 7200 ) as $attempt => $wait ) {
+			$this->assertEqualsWithDelta( $wait, $webhooks->retry_delay( $attempt ), intdiv( $wait, 10 ) );
+		}
+
 		$this->assertTrue( $webhooks->should_retry( 500, 4 ) );
 		$this->assertFalse( $webhooks->should_retry( 500, 5 ) );
+	}
+
+	/**
+	 * After an outage, a thousand queued deliveries do not all come back in
+	 * the same second: the SaaS retry policy spread them, and so does this.
+	 */
+	public function test_deliveries_that_failed_together_come_back_apart(): void {
+		$webhooks = $this->webhooks();
+		$waits    = array();
+
+		for ( $i = 0; $i < 200; $i++ ) {
+			$waits[] = $webhooks->retry_delay( 3 );
+		}
+
+		$this->assertGreaterThan( 20, count( array_unique( $waits ) ) );
+		$this->assertSame( array( 60, 300 ), array_map( array( $this->webhooks( array( 'jitter' => 0 ) ), 'retry_delay' ), array( 1, 2 ) ), 'Nought waits exactly.' );
 	}
 
 	/**
@@ -366,7 +386,7 @@ final class DispatcherTest extends TestCase {
 
 		$this->webhooks()->send( 'we_all', 'order.completed', '{}', 1 );
 
-		$this->assertEqualsWithDelta( time() + 60, $this->delivery()['timestamp'], 2 );
+		$this->assertEqualsWithDelta( time() + 60, $this->delivery()['timestamp'], 6 + 2, 'The schedule, not the 120 asked for.' );
 	}
 
 	/**

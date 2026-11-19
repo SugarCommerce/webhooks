@@ -12,6 +12,8 @@ declare( strict_types=1 );
 
 namespace SugarCommerce\Webhooks;
 
+use SugarCommerce\Jobs\Retry;
+
 /**
  * Class Backoff
  *
@@ -29,8 +31,9 @@ namespace SugarCommerce\Webhooks;
  *
  * A caller that already has a schedule it has promised somebody -- "a
  * minute, five minutes, half an hour, two hours" -- states it with
- * {@see self::fixed()}, and may still ask for jitter. Without jitter a
- * list of waits is simply `new Retry( [ 60, 300, 1800, 7200 ] )`.
+ * {@see self::fixed()}, spread a tenth either way unless it asks
+ * otherwise, as a plain list of waits in `new Retry( [ 60, 300, 1800,
+ * 7200 ] )` is.
  *
  * Usable on its own, too, for a row that keeps its own count of failures
  * rather than a status code -- a sweep that retries until something works:
@@ -67,10 +70,12 @@ final readonly class Backoff {
 	/**
 	 * A schedule that waits as long as it is told to, give or take jitter.
 	 *
-	 *   $backoff = Backoff::fixed( [ 60, 300, 1800, 7200 ], jitter: 10 );
+	 *   $backoff = Backoff::fixed( [ 60, 300, 1800, 7200 ] );
 	 *
 	 *   $backoff->delay( 1 );   // 54 to 66: the wait after the first failure
 	 *   $backoff->delay( 9 );   // around 7200: past the end, the last again
+	 *
+	 *   Backoff::fixed( [ 60, 300 ], jitter: 0 );   // exactly as told
 	 *
 	 * One more attempt than there are waits, unless told otherwise: four
 	 * waits are five tries.
@@ -83,13 +88,15 @@ final readonly class Backoff {
 	 *                               nought is dropped.
 	 * @param int|null $max_attempts Total attempts including the first.
 	 *                               Null for one more than there are waits.
-	 * @param int      $jitter       Percentage of random spread, 0-100.
+	 * @param int      $jitter       Percentage of random spread, 0-100. A
+	 *                               tenth by default, as a Retry's list of
+	 *                               waits is ({@see Retry::JITTER}).
 	 * @param int|null $max_delay    Ceiling for the delay. Null for a day,
 	 *                               or the longest wait if that is longer.
 	 *
 	 * @return self
 	 */
-	public static function fixed( array $delays, ?int $max_attempts = null, int $jitter = 0, ?int $max_delay = null ): self {
+	public static function fixed( array $delays, ?int $max_attempts = null, int $jitter = Retry::JITTER, ?int $max_delay = null ): self {
 		$clean = [];
 
 		foreach ( $delays as $delay ) {

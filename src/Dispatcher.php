@@ -188,6 +188,14 @@ final class Dispatcher {
 	 *     @type int                    $attempts       Total tries, with a
 	 *                                                  list of waits. One more
 	 *                                                  than there are waits.
+	 *     @type int                    $jitter         How far each listed
+	 *                                                  wait is spread, as a
+	 *                                                  percentage either way:
+	 *                                                  a tenth by default, so
+	 *                                                  deliveries that failed
+	 *                                                  together do not all
+	 *                                                  come back together. 0
+	 *                                                  waits exactly.
 	 *     @type int                    $timeout        10 seconds by default.
 	 *     @type int                    $redirects      0: a 3xx is the answer.
 	 *     @type bool                   $allow_private  Post to private and
@@ -231,7 +239,7 @@ final class Dispatcher {
 		$this->queue        = Scheduler::group( (string) ( $config['group'] ?? $this->prefix ) );
 		$this->test         = is_callable( $test ) ? $test : static fn(): bool => (bool) $test;
 		$this->id_prefix    = (string) ( $config['id_prefix'] ?? 'evt_' );
-		$this->retry        = $retry instanceof Retry ? $retry : new Retry( is_object( $retry ) ? $retry : (array) $retry, isset( $config['attempts'] ) ? (int) $config['attempts'] : null );
+		$this->retry        = $retry instanceof Retry ? $retry : new Retry( is_object( $retry ) ? $retry : (array) $retry, isset( $config['attempts'] ) ? (int) $config['attempts'] : null, null, (int) ( $config['jitter'] ?? Retry::JITTER ) );
 		$this->test_event   = (string) ( $config['test_event'] ?? 'ping' );
 		$this->test_message = $config['test_message'] ?? 'A test webhook. Answer with any 2xx status.';
 		$this->sender       = new Sender(

@@ -126,14 +126,21 @@ final class RetryTest extends TestCase {
 
 	/* ─── A stated schedule, with jitter ────────────────────────────── */
 
-	public function test_a_fixed_schedule_waits_exactly_as_told(): void {
+	public function test_a_fixed_schedule_is_spread_a_tenth_by_default(): void {
 		$backoff = Backoff::fixed( [ 60, 300, 1800, 7200 ] );
 
 		$this->assertSame( [ 60, 300, 1800, 7200 ], $backoff->schedule() );
+		$this->assertEqualsWithDelta( 300, $backoff->delay( 2 ), 30 );
+		$this->assertEqualsWithDelta( 7200, $backoff->delay( 9 ), 720 );
+		$this->assertSame( 5, $backoff->max_attempts );
+		$this->assertSame( Retry::JITTER, $backoff->jitter );
+	}
+
+	public function test_a_fixed_schedule_without_jitter_waits_exactly_as_told(): void {
+		$backoff = Backoff::fixed( [ 60, 300, 1800, 7200 ], jitter: 0 );
+
 		$this->assertSame( 300, $backoff->delay( 2 ) );
 		$this->assertSame( 7200, $backoff->delay( 9 ) );
-		$this->assertSame( 5, $backoff->max_attempts );
-		$this->assertSame( 0, $backoff->jitter );
 	}
 
 	public function test_a_fixed_schedule_keeps_only_real_waits(): void {
@@ -259,6 +266,7 @@ final class RetryTest extends TestCase {
 				'prefix'   => 'shop',
 				'retry'    => [ 10, 20 ],
 				'attempts' => 6,
+				'jitter'   => 0,
 			]
 		);
 

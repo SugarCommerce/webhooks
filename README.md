@@ -109,18 +109,21 @@ Endpoints kept inside another settings array take `read`/`write` callables:
 
 ## Retries
 
-A minute, five minutes, half an hour, two hours: five tries, to the second.
-Whether a failure is worth another go is `SugarCommerce\Jobs\Retry`'s rule: no
+A minute, five minutes, half an hour, two hours: five tries, each wait give or
+take a tenth, so deliveries that failed in one outage do not all come back in
+the same second and knock the receiver over again (`'jitter' => 0` waits
+exactly). Whether a failure is worth another go is `SugarCommerce\Jobs\Retry`'s rule: no
 answer, a 408, a 429 or a 5xx is tried again; any other answer -- a 410 most
 of all -- is a refusal and is final. A 429 or 503 with `Retry-After` (seconds
-or an HTTP-date) waits that long instead, up to a day. Without Action
+or an HTTP-date) waits that long instead, exactly, up to a day. Without Action
 Scheduler an event is sent once, there and then.
 
 ```php
 'retry'    => [ 60, 600, 3600 ],                        // waits after each failure
 'attempts' => 8,                                        // the last wait repeats
 'retry'    => new Backoff(),                            // doubling from a minute, 25% jitter, six tries
-'retry'    => Backoff::fixed( [ 60, 300, 1800 ], jitter: 10 ),
+'jitter'   => 25,                                       // spread a listed wait by a quarter
+'retry'    => Backoff::fixed( [ 60, 300, 1800 ] ),      // a tenth either way, as a list is
 'retry'    => new Retry( [ 60, 300 ], retry_if: fn( int $status ) => 0 === $status || $status >= 500 ),
 ```
 
@@ -267,8 +270,8 @@ From the retired SaaS `webhooks` package: secret rotation at both ends, the
 stricter header parsing, `Sender`/`Attempt` and `next_attempt_at()` are here.
 Its storage-free `EndpointHealth` value object became the `read`/`write` store
 above; its http-client `Sender` dependency is WordPress's HTTP API behind
-`SafeUrl`. The SaaS `outbox` package's queue, inbox and lock already live in
-`sugarcommerce/jobs`.
+`SafeUrl`. Of the SaaS `outbox` package, the inbox, budget and retry rule live
+in `sugarcommerce/jobs`; its queue and lock were left for Action Scheduler.
 
 ## Moving from arraypress/wp-webhooks
 
@@ -281,7 +284,8 @@ records and queued deliveries carry over.
 | `Dispatcher`, `Endpoints`, `Events`, `Breaker`, `Queued`, `SafeUrl`, `Signature`, `Verification` | same names, same methods |
 | `Dispatcher` config `retry => RetryPolicy::fixed( $waits, $attempts )` | `retry => $waits, attempts => $attempts`, or `new Retry( $waits, $attempts )` |
 | `Dispatcher` config `retry => new RetryPolicy( … )` | `retry => new Backoff( … )` -- same arguments |
-| `RetryPolicy::fixed( $waits, $attempts, $jitter, $max )` | `Backoff::fixed(` same `)`, or `new Retry( $waits, $attempts )` without jitter |
+| `RetryPolicy::fixed( $waits, $attempts, $jitter, $max )` | `Backoff::fixed(` same `)`, or `new Retry( $waits, $attempts, jitter: $jitter )`; both spread a tenth when not told |
+| `Dispatcher`'s default waits, to the second | the same waits, give or take a tenth; `'jitter' => 0` for exact |
 | `RetryPolicy::should_retry( $status, $attempt )` | `Retry::again( $status, $attempt )` (`sugarcommerce/jobs`); `$dispatcher->should_retry()` unchanged |
 | `RetryPolicy::delay( $attempt, $retry_after )` | `Retry::delay( $attempt, $retry_after )`; `Backoff::delay( $attempt )`; `$dispatcher->retry_delay()` unchanged |
 | `RetryPolicy::exhausted()`, `schedule()` | `Backoff::exhausted()`, `schedule()`; `Retry::exhausted()`, `waits()` |
