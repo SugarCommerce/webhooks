@@ -14,6 +14,7 @@ namespace SugarCommerce\Webhooks;
 
 use SugarCommerce\Jobs\Retry;
 use SugarCommerce\Jobs\Scheduler;
+use SugarCommerce\Network\Remote\SafeUrl;
 use SugarCommerce\Webhooks\Traits\Dispatcher\Delivery;
 
 /**
@@ -201,7 +202,9 @@ final class Dispatcher {
 	 *     @type int                    $redirects      0: a 3xx is the answer.
 	 *     @type bool                   $allow_private  Post to private and
 	 *                                                  loopback addresses. For
-	 *                                                  development only.
+	 *                                                  development only; never
+	 *                                                  a metadata or link-local
+	 *                                                  one.
 	 *     @type int                    $failure_limit  Failures in a row before
 	 *                                                  an endpoint is switched
 	 *                                                  off; 0 never. 15.

@@ -15,7 +15,7 @@ use SugarCommerce\Webhooks\Breaker;
 use SugarCommerce\Webhooks\Dispatcher;
 use SugarCommerce\Webhooks\EndpointHealth;
 use SugarCommerce\Webhooks\Endpoints;
-use SugarCommerce\Webhooks\SafeUrl;
+use SugarCommerce\Network\Remote\SafeUrl;
 use SugarCommerce\Webhooks\Sender;
 use SugarCommerce\Webhooks\Signature;
 

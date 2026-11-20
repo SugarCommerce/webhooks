@@ -160,17 +160,21 @@ The record of failures is one option, or anywhere with `read`/`write`:
 
 ## Addresses inside the network
 
-Every delivery goes through `SafeUrl`, on top of `wp_safe_remote_post()`.
-Every A and AAAA answer must be public by `SugarCommerce\Network\IP::is_public()`
--- loopback, RFC 1918, link-local, the metadata service, unique-local and
-site-local IPv6, and an IPv4 address carried inside IPv6 (mapped, SIIT, NAT64,
-6to4) judged by the address it carries. URLs with credentials or odd hosts are
-refused, curl is pinned to the address that was checked, and redirects (none
-followed by default; `'redirects' => 3`) are re-checked hop by hop.
-WordPress's `http_request_host_is_external` filter still lets a development
-host through, and `'allow_private' => true` lets every one through.
+Every delivery goes through `sugarcommerce/network`'s `Remote\SafeUrl`, the
+family's one guard for an address somebody typed in, on top of
+`wp_safe_remote_post()`. Every A and AAAA answer must be public by
+`SugarCommerce\Network\IP::is_public()` -- loopback, RFC 1918, link-local, the
+metadata service, unique-local and site-local IPv6, and an IPv4 address carried
+inside IPv6 (mapped, SIIT, NAT64, 6to4) judged by the address it carries. URLs
+with credentials or odd hosts are refused, curl is pinned to the address that
+was checked, and redirects (none followed by default; `'redirects' => 3`) are
+re-checked hop by hop. WordPress's `http_request_host_is_external` filter still
+lets a development host through, and `'allow_private' => true` lets private
+networks and loopback through -- never a metadata or link-local address.
 
 ```php
+use SugarCommerce\Network\Remote\SafeUrl;
+
 $reason = ( new SafeUrl() )->refuse( $url );   // null when it may be posted to; log the reason
 ```
 
@@ -269,10 +273,11 @@ give the receiver the event's `id` to deduplicate on, as `Receiver` does.
 ## Security
 
 * Server-side request forgery: every delivery, test and followed redirect
-  goes through `SafeUrl`, which refuses a host that is not a plain name or
+  goes through network's `Remote\SafeUrl`, which refuses a host that is not a plain name or
   IP, credentials in the address, and any host with even one private or
-  reserved address among its answers, then pins the connection to the
-  address it checked so DNS cannot change in between.
+  reserved address among its answers (and a metadata or link-local one
+  even with `allow_private`), then pins the connection to the address it
+  checked so DNS cannot change in between.
 * Forged or replayed deliveries: signatures are HMAC-SHA256 over the
   timestamp and body, compared with `hash_equals()` against every secret
   without an early exit; the timestamp is inside what is signed, a missing
@@ -287,7 +292,7 @@ give the receiver the event's `id` to deduplicate on, as `Receiver` does.
 ## Layout
 
 * Sending: `Dispatcher.php` (with `src/Traits/Dispatcher/Delivery.php`),
-  `Sender.php`, `SafeUrl.php`, `Queued.php`, `Backoff.php`.
+  `Sender.php`, `Queued.php`, `Backoff.php`.
 * Endpoints: `Endpoints.php`, `Events.php`, `Breaker.php`, `EndpointHealth.php`.
 * Receiving: `Receiver.php`, `Signature.php`.
 * `src/Models/`: data shapes and nothing that does work. `Attempt.php` (how one

@@ -1,6 +1,6 @@
 <?php
 /**
- * curl_setopt(), as SafeUrl's namespace sees it.
+ * curl_setopt(), as network's Remote\SafeUrl sees it.
  *
  * An unqualified call resolves to a function in the caller's namespace
  * before the global one, so this records the pin SafeUrl gives curl --
@@ -11,7 +11,7 @@
 
 declare( strict_types=1 );
 
-namespace SugarCommerce\Webhooks;
+namespace SugarCommerce\Network\Remote;
 
 /**
  * Record CURLOPT_RESOLVE; pass anything else through.
