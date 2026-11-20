@@ -10,7 +10,7 @@
 
 declare( strict_types=1 );
 
-namespace SugarCommerce\Webhooks;
+namespace SugarCommerce\Webhooks\Models;
 
 /**
  * Class Verification

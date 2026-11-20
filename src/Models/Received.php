@@ -10,7 +10,7 @@
 
 declare( strict_types=1 );
 
-namespace SugarCommerce\Webhooks;
+namespace SugarCommerce\Webhooks\Models;
 
 use Throwable;
 
@@ -18,7 +18,7 @@ use Throwable;
  * Class Received
  *
  * The status to answer the sender with, and enough to log. Made by
- * {@see Receiver::receive()}.
+ * {@see \SugarCommerce\Webhooks\Receiver::receive()}.
  *
  *   200  handled now, or already handled by an earlier delivery (`duplicate`)
  *   400  not signed, signed wrongly, too old, or not an event: do not retry

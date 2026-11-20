@@ -15,6 +15,7 @@ namespace SugarCommerce\Webhooks;
 use InvalidArgumentException;
 use SugarCommerce\Dates\Clock;
 use SugarCommerce\Security\Hash;
+use SugarCommerce\Webhooks\Models\Verification;
 
 /**
  * Class Signature

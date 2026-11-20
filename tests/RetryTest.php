@@ -13,9 +13,9 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use SugarCommerce\Dates\Clock;
 use SugarCommerce\Jobs\Retry;
-use SugarCommerce\Webhooks\Attempt;
 use SugarCommerce\Webhooks\Backoff;
 use SugarCommerce\Webhooks\Dispatcher;
+use SugarCommerce\Webhooks\Models\Attempt;
 
 /**
  * Whether a failed delivery is tried again is sugarcommerce/jobs' Retry;

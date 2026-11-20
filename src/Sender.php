@@ -13,6 +13,7 @@ declare( strict_types=1 );
 namespace SugarCommerce\Webhooks;
 
 use SugarCommerce\Dates\Clock;
+use SugarCommerce\Webhooks\Models\Attempt;
 
 /**
  * Class Sender

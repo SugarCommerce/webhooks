@@ -287,9 +287,12 @@ give the receiver the event's `id` to deduplicate on, as `Receiver` does.
 ## Layout
 
 * Sending: `Dispatcher.php` (with `src/Traits/Dispatcher/Delivery.php`),
-  `Sender.php`, `Attempt.php`, `SafeUrl.php`, `Queued.php`, `Backoff.php`.
+  `Sender.php`, `SafeUrl.php`, `Queued.php`, `Backoff.php`.
 * Endpoints: `Endpoints.php`, `Events.php`, `Breaker.php`, `EndpointHealth.php`.
-* Receiving: `Receiver.php`, `Received.php`, `Signature.php`, `Verification.php`.
+* Receiving: `Receiver.php`, `Signature.php`.
+* `src/Models/`: data shapes and nothing that does work. `Attempt.php` (how one
+  delivery went), `Received.php` (what to answer a sender) and `Verification.php`
+  (whether a signature held, and why not).
 
 ## Requirements
 

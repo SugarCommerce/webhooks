@@ -13,8 +13,9 @@ declare( strict_types=1 );
 namespace SugarCommerce\Webhooks;
 
 use Closure;
-use SugarCommerce\Jobs\Claim;
 use SugarCommerce\Jobs\Inbox;
+use SugarCommerce\Jobs\Models\Claim;
+use SugarCommerce\Webhooks\Models\Received;
 use Throwable;
 
 /**
