@@ -266,43 +266,30 @@ WP-Cron, and Action Scheduler on top of it, runs on traffic: a quiet site
 sends a queued delivery late. Delivery is at least once, not exactly once --
 give the receiver the event's `id` to deduplicate on, as `Receiver` does.
 
-From the retired SaaS `webhooks` package: secret rotation at both ends, the
-stricter header parsing, `Sender`/`Attempt` and `next_attempt_at()` are here.
-Its storage-free `EndpointHealth` value object became the `read`/`write` store
-above; its http-client `Sender` dependency is WordPress's HTTP API behind
-`SafeUrl`. Of the SaaS `outbox` package, the inbox, budget and retry rule live
-in `sugarcommerce/jobs`; its queue and lock were left for Action Scheduler.
+## Security
 
-## Moving from arraypress/wp-webhooks
+* Server-side request forgery: every delivery, test and followed redirect
+  goes through `SafeUrl`, which refuses a host that is not a plain name or
+  IP, credentials in the address, and any host with even one private or
+  reserved address among its answers, then pins the connection to the
+  address it checked so DNS cannot change in between.
+* Forged or replayed deliveries: signatures are HMAC-SHA256 over the
+  timestamp and body, compared with `hash_equals()` against every secret
+  without an early exit; the timestamp is inside what is signed, a missing
+  header is a refusal, and a negative window fails rather than switching the
+  check off. With an inbox, one event id is handled once.
+* A received body is checked with `json_validate()` before it is decoded.
+* Secrets are never logged: what a failed handler leaves in the inbox is the
+  exception's class, not its message.
+* An endpoint failing for a day is switched off, so a dead or hostile
+  address cannot keep a queue busy.
 
-Namespace `ArrayPress\Webhooks` → `SugarCommerce\Webhooks`. Option names,
-hook names, headers and the body are unchanged, so stored endpoints, failure
-records and queued deliveries carry over.
+## Layout
 
-| Was | Now |
-|---|---|
-| `Dispatcher`, `Endpoints`, `Events`, `Breaker`, `Queued`, `SafeUrl`, `Signature`, `Verification` | same names, same methods |
-| `Dispatcher` config `retry => RetryPolicy::fixed( $waits, $attempts )` | `retry => $waits, attempts => $attempts`, or `new Retry( $waits, $attempts )` |
-| `Dispatcher` config `retry => new RetryPolicy( … )` | `retry => new Backoff( … )` -- same arguments |
-| `RetryPolicy::fixed( $waits, $attempts, $jitter, $max )` | `Backoff::fixed(` same `)`, or `new Retry( $waits, $attempts, jitter: $jitter )`; both spread a tenth when not told |
-| `Dispatcher`'s default waits, to the second | the same waits, give or take a tenth; `'jitter' => 0` for exact |
-| `RetryPolicy::should_retry( $status, $attempt )` | `Retry::again( $status, $attempt )` (`sugarcommerce/jobs`); `$dispatcher->should_retry()` unchanged |
-| `RetryPolicy::delay( $attempt, $retry_after )` | `Retry::delay( $attempt, $retry_after )`; `Backoff::delay( $attempt )`; `$dispatcher->retry_delay()` unchanged |
-| `RetryPolicy::exhausted()`, `schedule()` | `Backoff::exhausted()`, `schedule()`; `Retry::exhausted()`, `waits()` |
-| `RetryPolicy::retry_after( $header, $now )` | `Attempt::retry_after( $header, $now )` |
-| `SafeUrl::is_public_ip( $ip )` | `SugarCommerce\Network\IP::is_public( $ip )` -- see below |
-| `new EndpointHealth( $option, $limit, $period )` | `EndpointHealth::option( $option, $limit, $period )`, or `new EndpointHealth( $read, $write, $limit, $period )` |
-| `new Breaker( $endpoints, $prefix, $option, … )` | same; `$option` may also be `[ 'read' => …, 'write' => … ]` |
-| `Endpoints::option( $name, $events )` | same, plus `$id_prefix`, `$secret_prefix` |
-| `$dispatcher->signature( $body, $secret, time() )` | same; the time may be left out |
-| (none) | `Receiver`, `Received`, `Sender`, `Attempt`, `Dispatcher::sender()`, `Dispatcher::retry()`, `health` and `endpoint_prefix`/`secret_prefix` config |
-| Requires `arraypress/wp-register-cron` | `sugarcommerce/jobs`, `sugarcommerce/network`, `sugarcommerce/security`, `sugarcommerce/dates` |
-
-Behaviour that moved with it: a minted endpoint id is now `we_` and sixteen
-hex characters, not sixteen letters and digits (existing ids are kept); an
-IPv6 address in NAT64 or 6to4 form that carries a *public* IPv4 address is now
-posted to, where it was refused outright -- one carrying a private address is
-refused as before.
+* Sending: `Dispatcher.php` (with `src/Traits/Dispatcher/Delivery.php`),
+  `Sender.php`, `Attempt.php`, `SafeUrl.php`, `Queued.php`, `Backoff.php`.
+* Endpoints: `Endpoints.php`, `Events.php`, `Breaker.php`, `EndpointHealth.php`.
+* Receiving: `Receiver.php`, `Received.php`, `Signature.php`, `Verification.php`.
 
 ## Requirements
 

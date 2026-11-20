@@ -59,7 +59,7 @@ final readonly class Signature {
 	 *
 	 * @since 1.0.0
 	 */
-	public const HEADER = 'X-Webhook-Signature';
+	public const string HEADER = 'X-Webhook-Signature';
 
 	/**
 	 * How much clock skew to tolerate, in seconds.
@@ -70,7 +70,7 @@ final readonly class Signature {
 	 *
 	 * @since 1.0.0
 	 */
-	public const DEFAULT_TOLERANCE = 300;
+	public const int DEFAULT_TOLERANCE = 300;
 
 	/**
 	 * Sign a payload.

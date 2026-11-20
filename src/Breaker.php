@@ -41,7 +41,7 @@ final class Breaker {
 	 *
 	 * @since 1.0.0
 	 */
-	public const LIMIT = 15;
+	public const int LIMIT = 15;
 
 	/**
 	 * How long it must have been failing for as well.
@@ -52,7 +52,7 @@ final class Breaker {
 	 *
 	 * @since 1.0.0
 	 */
-	public const PERIOD = 86400;
+	public const int PERIOD = 86400;
 
 	/**
 	 * Where the record of failures is kept: an option name, or

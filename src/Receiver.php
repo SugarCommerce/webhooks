@@ -104,7 +104,9 @@ final class Receiver {
 			return new Received( 400, $check->reason );
 		}
 
-		$event = json_decode( $body, true );
+		// Checked before it is decoded: a signed body is still somebody
+		// else's text, and json_validate() reads it without building it.
+		$event = json_validate( $body ) ? json_decode( $body, true ) : null;
 
 		if ( ! is_array( $event ) ) {
 			return new Received( 400, 'The body is not a JSON object.' );

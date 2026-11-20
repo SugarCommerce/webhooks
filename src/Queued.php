@@ -53,7 +53,7 @@ final class Queued {
 	/**
 	 * Deliveries read at a time.
 	 */
-	private const PAGE = 100;
+	private const int PAGE = 100;
 
 	/**
 	 * Which of a delivery's arguments is its body.
@@ -61,7 +61,7 @@ final class Queued {
 	 * The arguments are `[ endpoint id, type, body, attempt ]`, as the
 	 * dispatcher queues them.
 	 */
-	private const BODY = 2;
+	private const int BODY = 2;
 
 	/**
 	 * @since 1.0.0

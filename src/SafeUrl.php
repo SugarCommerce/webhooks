@@ -58,7 +58,7 @@ final class SafeUrl {
 	 * The ones that keep the method and the body. A 303 means "go and GET
 	 * something else", which is not delivering a webhook.
 	 */
-	private const FOLLOWED = [ 301, 302, 307, 308 ];
+	private const array FOLLOWED = [ 301, 302, 307, 308 ];
 
 	/**
 	 * How a name is resolved: fn( string $host ): string[].
